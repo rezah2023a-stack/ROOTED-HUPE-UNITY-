@@ -8,6 +8,11 @@ public class ArduinoTest : MonoBehaviour
 
     SeasonManager seasonManager;
 
+    public int moisture = 0;
+    public int ldr      = 0;
+    public int fsr      = 0;
+    public int season   = 0;
+
     void Start()
     {
         seasonManager = FindObjectOfType<SeasonManager>();
@@ -23,13 +28,19 @@ public class ArduinoTest : MonoBehaviour
             try
             {
                 string data = serial.ReadLine();
-                Debug.Log("Moisture: " + data);
-
                 string[] values = data.Split(',');
+
                 if (values.Length >= 4)
                 {
-                    int season = int.Parse(values[3]);
-                    seasonManager.SetSeason(season);
+                    moisture = int.Parse(values[0]);
+                    ldr      = int.Parse(values[1]);
+                    fsr      = int.Parse(values[2]);
+                    season   = int.Parse(values[3]);
+
+                    Debug.Log("Moisture: " + moisture + " LDR: " + ldr + " FSR: " + fsr + " Season: " + season);
+
+                    if (seasonManager != null)
+                        seasonManager.SetSeason(season);
                 }
             }
             catch { }

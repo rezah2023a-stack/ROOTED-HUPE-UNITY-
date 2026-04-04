@@ -15,11 +15,22 @@ public class SeasonManager : MonoBehaviour
     [Header("Lighting")]
     public Light directionalLight;
 
+    [Header("Shader")]
+    public Material groundMaterial;
+
+    [Header("Test")]
+    public int testSeason = 0;
+
     private int currentSeason = -1;
 
     void Start()
     {
         SetWinter();
+    }
+
+    void Update()
+    {
+        SetSeason(testSeason);
     }
 
     public void SetSeason(int season)
@@ -45,6 +56,9 @@ public class SeasonManager : MonoBehaviour
             directionalLight.color = new Color(0.7f, 0.8f, 1f);
             directionalLight.intensity = 0.6f;
         }
+
+        if (groundMaterial != null)
+            groundMaterial.SetFloat("_Blend", 0f);
     }
 
     void SetSpring()
@@ -61,5 +75,8 @@ public class SeasonManager : MonoBehaviour
             directionalLight.color = new Color(1f, 0.95f, 0.8f);
             directionalLight.intensity = 1.2f;
         }
+
+        if (groundMaterial != null)
+            groundMaterial.SetFloat("_Blend", 1f);
     }
 }
