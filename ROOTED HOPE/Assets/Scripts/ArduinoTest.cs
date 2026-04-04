@@ -4,13 +4,16 @@ using System.IO.Ports;
 public class ArduinoTest : MonoBehaviour
 {
     SerialPort serial;
-    public string portName = "/dev/cu.usbmodem1301";
+    public string portName = "/dev/cu.usbmodem11401";
+
+    SeasonManager seasonManager;
 
     void Start()
     {
+        seasonManager = FindObjectOfType<SeasonManager>();
         serial = new SerialPort(portName, 9600);
         serial.Open();
-        Debug.Log("Connect!");
+        Debug.Log("Connected!");
     }
 
     void Update()
@@ -20,7 +23,14 @@ public class ArduinoTest : MonoBehaviour
             try
             {
                 string data = serial.ReadLine();
-                Debug.Log("moisture: " + data);
+                Debug.Log("Moisture: " + data);
+
+                string[] values = data.Split(',');
+                if (values.Length >= 4)
+                {
+                    int season = int.Parse(values[3]);
+                    seasonManager.SetSeason(season);
+                }
             }
             catch { }
         }
