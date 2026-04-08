@@ -3,52 +3,56 @@ using System.IO.Ports;
 
 public class ArduinoTest : MonoBehaviour
 {
-    SerialPort serial;
+    [Header("Serial Settings")]
     public string portName = "/dev/cu.usbmodem11401";
+    public int baudRate = 9600;
 
-    SeasonManager seasonManager;
+    private SerialPort serial;
 
-    public int moisture = 0;
-    public int ldr      = 0;
-    public int fsr      = 0;
-    public int season   = 0;
+    void Start() {
+        serial = new SerialPort(portName, baudRate);
+        serial.ReadTimeout = 100;
 
-    void Start()
-    {
-        seasonManager = FindObjectOfType<SeasonManager>();
-        serial = new SerialPort(portName, 9600);
-        serial.Open();
-        Debug.Log("Connected!");
-    }
-
-    void Update()
-    {
-        if (serial.IsOpen)
-        {
-            try
-            {
-                string data = serial.ReadLine();
-                string[] values = data.Split(',');
-
-                if (values.Length >= 4)
-                {
-                    moisture = int.Parse(values[0]);
-                    ldr      = int.Parse(values[1]);
-                    fsr      = int.Parse(values[2]);
-                    season   = int.Parse(values[3]);
-
-                    Debug.Log("Moisture: " + moisture + " LDR: " + ldr + " FSR: " + fsr + " Season: " + season);
-
-                    if (seasonManager != null)
-                        seasonManager.SetSeason(season);
-                }
-            }
-            catch { }
+        try {
+            serial.Open();
+            Debug.Log("Serial port opened: " + portName);
+        }
+        catch {
+            Debug.LogError("Failed to open serial port: " + portName);
         }
     }
 
-    void OnApplicationQuit()
-    {
-        serial.Close();
+    void Update() {
+        if (serial == null || !serial.IsOpen) return;
+
+        try {
+            string data = serial.ReadLine().Trim();
+            ParseData(data);
+        }
+        catch { }
+    }
+
+    void ParseData(string data) {
+        // Expected format: "650,320,1200,Spring"
+        string[] values = data.Split(',');
+        if (values.Length < 4) return;
+
+        try {
+            SensorData.Instance.moisture = float.Parse(values[0]);
+            SensorData.Instance.ldr      = float.Parse(values[1]);
+            SensorData.Instance.touch    = long.Parse(values[2]);
+            SensorData.Instance.state    = values[3];
+
+            SeasonManager.Instance.UpdateWeather();
+
+            Debug.Log($"Moisture: {values[0]} | LDR: {values[1]} | Touch: {values[2]} | State: {values[3]}");
+        }
+        catch {
+            Debug.LogWarning("Failed to parse data: " + data);
+        }
+    }
+
+    void OnDestroy() {
+        if (serial != null && serial.IsOpen) serial.Close();
     }
 }
