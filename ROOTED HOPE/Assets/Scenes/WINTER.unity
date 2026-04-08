@@ -17,7 +17,7 @@ RenderSettings:
   m_Fog: 1
   m_FogColor: {r: 0.7491545, g: 0.7923135, b: 0.8584906, a: 1}
   m_FogMode: 3
-  m_FogDensity: 0.003
+  m_FogDensity: 0
   m_LinearFogStart: 0
   m_LinearFogEnd: 300
   m_AmbientSkyColor: {r: 0.212, g: 0.227, b: 0.259, a: 1}
@@ -5752,7 +5752,7 @@ MonoBehaviour:
   directionalLight: {fileID: 434522285}
   terrain: {fileID: 664518947}
   transitionDuration: 8
-  testSeason: 0
+  testSeason: 1
 --- !u!4 &645254060
 Transform:
   m_ObjectHideFlags: 0
@@ -5883,19 +5883,19 @@ MonoBehaviour:
   colorMapResolution: 512
   layerSettings:
   - enabled: 1
-    layer: {fileID: 8574412962073106934, guid: c52ad77efecd38146bfb167ad0f38daf, type: 2}
+    layer: {fileID: 8574412962073106934, guid: 69debc15b685aef4aa7bb2783ddd8a2b, type: 2}
     modifierStack:
-    - {fileID: 30644202}
-  - enabled: 1
-    layer: {fileID: 8574412962073106934, guid: d661d777c2e104a25a9f79e6d4ac6bf0, type: 2}
-    modifierStack: []
+    - {fileID: 2150166}
   - enabled: 1
     layer: {fileID: 8574412962073106934, guid: a026f67c6452bb7488422ec75c67c660, type: 2}
     modifierStack: []
   - enabled: 1
-    layer: {fileID: 8574412962073106934, guid: 69debc15b685aef4aa7bb2783ddd8a2b, type: 2}
+    layer: {fileID: 8574412962073106934, guid: d661d777c2e104a25a9f79e6d4ac6bf0, type: 2}
+    modifierStack: []
+  - enabled: 1
+    layer: {fileID: 8574412962073106934, guid: c52ad77efecd38146bfb167ad0f38daf, type: 2}
     modifierStack:
-    - {fileID: 2150166}
+    - {fileID: 30644202}
   autoRepaint: 0
   terrainListeners: []
   bounds:
