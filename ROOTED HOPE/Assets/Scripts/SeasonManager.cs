@@ -26,6 +26,7 @@ public class SeasonManager : MonoBehaviour
 
     [Header("Terrain")]
     public Terrain terrain;
+    public float grassDensity = 1f;
 
     [Header("Transition Speed")]
     public float transitionDuration = 8f;
@@ -37,7 +38,7 @@ public class SeasonManager : MonoBehaviour
     private int GRASS   = 2;
 
     private string currentState = "";
-    private bool isSpringLocked = false; // once Spring is reached, lock permanently
+    private bool isSpringLocked = false;
     private ColorAdjustments colorAdjustments;
 
     void Awake() {
@@ -74,7 +75,7 @@ public class SeasonManager : MonoBehaviour
     }
 
     // ─────────────────────────────────────────────
-    // WINTER — fog ON, cold blue light
+    // WINTER — fog ON, cold blue light, no grass
     // ─────────────────────────────────────────────
     void SetWinter() {
         Wintergroup.SetActive(true);
@@ -98,10 +99,13 @@ public class SeasonManager : MonoBehaviour
             colorAdjustments.colorFilter.value = new Color(0.88f, 0.92f, 1f);
 
         SetTerrainLayer(SNOW);
+
+        // Hide grass and flowers in winter
+        SetTerrainDetails(0f);
     }
 
     // ─────────────────────────────────────────────
-    // RAIN — fog ON, dark overcast
+    // RAIN — fog ON, dark overcast, no grass
     // ─────────────────────────────────────────────
     IEnumerator SetRain() {
         Wintergroup.SetActive(false);
@@ -127,10 +131,13 @@ public class SeasonManager : MonoBehaviour
         ));
 
         SetTerrainLayer(SNOW);
+
+        // No grass in rain
+        SetTerrainDetails(0f);
     }
 
     // ─────────────────────────────────────────────
-    // CLEAR — fog OFF, bright winter sun
+    // CLEAR — fog OFF, bright winter sun, no grass
     // ─────────────────────────────────────────────
     IEnumerator SetClear() {
         Wintergroup.SetActive(false);
@@ -158,10 +165,13 @@ public class SeasonManager : MonoBehaviour
         ));
 
         SetTerrainLayer(SNOW);
+
+        // No grass in clear winter
+        SetTerrainDetails(0f);
     }
 
     // ─────────────────────────────────────────────
-    // SPRING — fog OFF, warm golden light, locked permanently
+    // SPRING — fog OFF, warm pink light, grass grows
     // ─────────────────────────────────────────────
     IEnumerator SetSpring() {
         SpringGroup.SetActive(true);
@@ -175,22 +185,25 @@ public class SeasonManager : MonoBehaviour
 
         Coroutine lightingCo = StartCoroutine(TransitionLighting(
             fromLightColor:   DirectionalLight.color,
-            toLightColor:     new Color(1f, 0.75f, 0.85f), 
+            toLightColor:     new Color(1f, 0.75f, 0.85f),
             fromIntensity:    DirectionalLight.intensity,
-            toIntensity:      1.8f,  
+            toIntensity:      1.8f,
             fromAmbient:      RenderSettings.ambientLight,
-            toAmbient:        new Color(1f, 0.75f, 0.85f),  
+            toAmbient:        new Color(1f, 0.75f, 0.85f),
             fromVolumeFilter: colorAdjustments != null
                                 ? colorAdjustments.colorFilter.value
                                 : Color.white,
             toVolumeFilter:   new Color(1f, 0.82f, 0.90f),
             duration:         transitionDuration
-));
+        ));
 
-        // Terrain transition runs alongside lighting
+        // Terrain: Snow -> Melting -> Grass with random pattern
         yield return StartCoroutine(TransitionTerrain(SNOW, MELTING, transitionDuration * 0.5f));
         yield return new WaitForSeconds(2f);
         yield return StartCoroutine(TransitionTerrain(MELTING, GRASS, transitionDuration * 0.5f));
+
+        // Grass and flowers grow alongside terrain transition
+        yield return StartCoroutine(FadeTerrainDetails(0f, grassDensity, transitionDuration));
 
         yield return lightingCo;
 
@@ -202,7 +215,7 @@ public class SeasonManager : MonoBehaviour
     }
 
     // ─────────────────────────────────────────────
-    // TOUCH — fog OFF, instant bloom
+    // TOUCH — fog OFF, instant bloom, grass appears
     // ─────────────────────────────────────────────
     IEnumerator SetTouch() {
         SpringGroup.SetActive(true);
@@ -225,6 +238,9 @@ public class SeasonManager : MonoBehaviour
         ));
 
         yield return StartCoroutine(TransitionTerrain(SNOW, GRASS, transitionDuration * 0.5f));
+
+        // Grass appears on touch
+        SetTerrainDetails(grassDensity);
     }
 
     // ─────────────────────────────────────────────
@@ -234,6 +250,33 @@ public class SeasonManager : MonoBehaviour
         RenderSettings.fog        = enabled;
         RenderSettings.fogColor   = color;
         RenderSettings.fogDensity = density;
+    }
+
+    // ─────────────────────────────────────────────
+    // Instantly set terrain detail density
+    // ─────────────────────────────────────────────
+    void SetTerrainDetails(float density) {
+        if (terrain == null) return;
+        terrain.detailObjectDensity = density;
+        terrain.Flush();
+    }
+
+    // ─────────────────────────────────────────────
+    // Smoothly fade terrain detail density
+    // ─────────────────────────────────────────────
+    IEnumerator FadeTerrainDetails(float from, float to, float duration) {
+        float elapsed = 0f;
+
+        while (elapsed < duration) {
+            elapsed += Time.deltaTime;
+            float t = Mathf.SmoothStep(0f, 1f, elapsed / duration);
+            terrain.detailObjectDensity = Mathf.Lerp(from, to, t);
+            terrain.Flush();
+            yield return null;
+        }
+
+        terrain.detailObjectDensity = to;
+        terrain.Flush();
     }
 
     // ─────────────────────────────────────────────
@@ -299,28 +342,40 @@ public class SeasonManager : MonoBehaviour
     }
 
     // ─────────────────────────────────────────────
-    // Smoothly blend terrain between two layers
+    // Smoothly blend terrain with random melting pattern
     // ─────────────────────────────────────────────
     IEnumerator TransitionTerrain(int fromLayer, int toLayer, float duration) {
         float elapsed = 0f;
+        TerrainData td = terrain.terrainData;
+        int w = td.alphamapWidth;
+        int h = td.alphamapHeight;
+
+        // Generate random offset map for natural melting pattern
+        float[,] randomOffset = new float[h, w];
+        for (int y = 0; y < h; y++)
+            for (int x = 0; x < w; x++)
+                randomOffset[y, x] = Random.Range(-0.3f, 0.3f);
 
         while (elapsed < duration) {
             elapsed += Time.deltaTime;
-            float blend = Mathf.SmoothStep(0f, 1f, elapsed / duration);
+            float baseBlend = Mathf.SmoothStep(0f, 1f, elapsed / duration);
 
-            float[,,] maps = terrain.terrainData.GetAlphamaps(0, 0,
-                terrain.terrainData.alphamapWidth,
-                terrain.terrainData.alphamapHeight);
+            float[,,] maps = td.GetAlphamaps(0, 0, w, h);
 
-            for (int y = 0; y < maps.GetLength(0); y++)
-                for (int x = 0; x < maps.GetLength(1); x++) {
+            for (int y = 0; y < h; y++) {
+                for (int x = 0; x < w; x++) {
+                    // Each pixel melts at slightly different time
+                    float blend = Mathf.Clamp01(baseBlend + randomOffset[y, x]);
+
                     for (int i = 0; i < maps.GetLength(2); i++)
                         maps[y, x, i] = 0f;
+
                     maps[y, x, fromLayer] = 1f - blend;
                     maps[y, x, toLayer]   = blend;
                 }
+            }
 
-            terrain.terrainData.SetAlphamaps(0, 0, maps);
+            td.SetAlphamaps(0, 0, maps);
             yield return null;
         }
 
