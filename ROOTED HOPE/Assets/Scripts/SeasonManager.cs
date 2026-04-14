@@ -53,25 +53,23 @@ public class SeasonManager : MonoBehaviour
         SetWinter();
     }
 
-    public void UpdateWeather() {
-        // Once Spring is reached, lock the state permanently
+    // ─────────────────────────────────────────────
+    // Public trigger methods called from ArduinoTest
+    // ─────────────────────────────────────────────
+    public void TriggerRain() {
         if (isSpringLocked) return;
+        if (currentState == "Rain") return;
+        currentState = "Rain";
+        Debug.Log("State changed to: Rain");
+        StartCoroutine(SetRain());
+    }
 
-        string newState = SensorData.Instance.state;
-
-        // Ignore if state has not changed
-        if (newState == currentState) return;
-        currentState = newState;
-
-        Debug.Log("State changed to: " + newState);
-
-        switch (newState) {
-            case "Winter": SetWinter();                 break;
-            case "Rain":   StartCoroutine(SetRain());   break;
-            case "Clear":  StartCoroutine(SetClear());  break;
-            case "Spring": StartCoroutine(SetSpring()); break;
-            case "Touch":  StartCoroutine(SetTouch());  break;
-        }
+    public void TriggerSpring() {
+        if (isSpringLocked) return;
+        if (currentState == "Spring") return;
+        currentState = "Spring";
+        Debug.Log("State changed to: Spring");
+        StartCoroutine(SetSpring());
     }
 
     // ─────────────────────────────────────────────
@@ -137,40 +135,6 @@ public class SeasonManager : MonoBehaviour
     }
 
     // ─────────────────────────────────────────────
-    // CLEAR — fog OFF, bright winter sun, no grass
-    // ─────────────────────────────────────────────
-    IEnumerator SetClear() {
-        Wintergroup.SetActive(false);
-        Rain.SetActive(false);
-        SpringGroup.SetActive(false);
-        WindFar_Left.SetActive(false);
-        WindClose.SetActive(false);
-        WindZone.SetActive(true);
-
-        // Disable fog for clear sky
-        SetFog(false, new Color(0.85f, 0.88f, 0.92f), 0.004f);
-
-        yield return StartCoroutine(TransitionLighting(
-            fromLightColor:   DirectionalLight.color,
-            toLightColor:     new Color(1f,    0.95f, 0.85f),
-            fromIntensity:    DirectionalLight.intensity,
-            toIntensity:      0.9f,
-            fromAmbient:      RenderSettings.ambientLight,
-            toAmbient:        new Color(0.65f, 0.70f, 0.80f),
-            fromVolumeFilter: colorAdjustments != null
-                                  ? colorAdjustments.colorFilter.value
-                                  : Color.white,
-            toVolumeFilter:   new Color(0.95f, 0.95f, 1f),
-            duration:         transitionDuration * 0.5f
-        ));
-
-        SetTerrainLayer(SNOW);
-
-        // No grass in clear winter
-        SetTerrainDetails(0f);
-    }
-
-    // ─────────────────────────────────────────────
     // SPRING — fog OFF, warm pink light, grass grows
     // ─────────────────────────────────────────────
     IEnumerator SetSpring() {
@@ -212,35 +176,6 @@ public class SeasonManager : MonoBehaviour
         // Lock Spring state permanently
         isSpringLocked = true;
         Debug.Log("Spring locked!");
-    }
-
-    // ─────────────────────────────────────────────
-    // TOUCH — fog OFF, instant bloom, grass appears
-    // ─────────────────────────────────────────────
-    IEnumerator SetTouch() {
-        SpringGroup.SetActive(true);
-
-        // Disable fog for touch
-        SetFog(false, new Color(0.94f, 0.91f, 0.86f), 0.003f);
-
-        yield return StartCoroutine(TransitionLighting(
-            fromLightColor:   DirectionalLight.color,
-            toLightColor:     new Color(1f,    0.95f, 0.8f),
-            fromIntensity:    DirectionalLight.intensity,
-            toIntensity:      1.2f,
-            fromAmbient:      RenderSettings.ambientLight,
-            toAmbient:        new Color(0.78f, 0.91f, 0.63f),
-            fromVolumeFilter: colorAdjustments != null
-                                  ? colorAdjustments.colorFilter.value
-                                  : Color.white,
-            toVolumeFilter:   new Color(1f, 0.96f, 0.91f),
-            duration:         transitionDuration * 0.5f
-        ));
-
-        yield return StartCoroutine(TransitionTerrain(SNOW, GRASS, transitionDuration * 0.5f));
-
-        // Grass appears on touch
-        SetTerrainDetails(grassDensity);
     }
 
     // ─────────────────────────────────────────────

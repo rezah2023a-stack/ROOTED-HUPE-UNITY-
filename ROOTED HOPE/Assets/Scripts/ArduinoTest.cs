@@ -34,30 +34,29 @@ public class ArduinoTest : MonoBehaviour
     }
 
     void ParseData(string data) {
-        // Expected format: "moisture,ldr1,ldr2,ldr3,ldr4,touch,state"
-        string[] values = data.Split(',');
-        if (values.Length < 7) return;
+        Debug.Log("Received: " + data);
 
-        try {
-            SensorData.Instance.moisture = float.Parse(values[0]);
-            SensorData.Instance.ldr      = float.Parse(values[1]); // ldr1 as main ldr
-            SensorData.Instance.touch    = long.Parse(values[5]);
-            SensorData.Instance.state    = values[6];
-
-            // Update each spotlight individually
-            SpotlightManager.Instance.UpdateSpotlights(
-                float.Parse(values[1]), // ldr1
-                float.Parse(values[2]), // ldr2
-                float.Parse(values[3]), // ldr3
-                float.Parse(values[4])  // ldr4
-            );
-
-            SeasonManager.Instance.UpdateWeather();
-
-            Debug.Log($"Moisture: {values[0]} | LDR1: {values[1]} | LDR2: {values[2]} | LDR3: {values[3]} | LDR4: {values[4]} | Touch: {values[5]} | State: {values[6]}");
+        if (data == "Rain") {
+            // Trigger rain in Unity
+            SeasonManager.Instance.TriggerRain();
         }
-        catch {
-            Debug.LogWarning("Failed to parse data: " + data);
+        else if (data == "Spotlight1") {
+            SpotlightManager.Instance.TurnOnSpotlight(0);
+        }
+        else if (data == "Spotlight2") {
+            SpotlightManager.Instance.TurnOnSpotlight(1);
+        }
+        else if (data == "Spotlight3") {
+            SpotlightManager.Instance.TurnOnSpotlight(2);
+        }
+        else if (data == "Spotlight4") {
+            SpotlightManager.Instance.TurnOnSpotlight(3);
+        }
+        else if (data == "Spring") {
+            SeasonManager.Instance.TriggerSpring();
+        }
+        else if (data == "Touch") {
+            SeasonManager.Instance.TriggerTouch();
         }
     }
 
