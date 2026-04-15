@@ -10,9 +10,6 @@ public class SpotlightManager : MonoBehaviour
     public GameObject spotlight3Parent;
     public GameObject spotlight4Parent;
 
-    [Header("Settings")]
-    public float ldrThreshold = 500f;
-
     void Awake() {
         Instance = this;
     }

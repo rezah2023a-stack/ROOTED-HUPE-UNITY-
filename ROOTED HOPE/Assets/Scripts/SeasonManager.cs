@@ -17,6 +17,12 @@ public class SeasonManager : MonoBehaviour
     public GameObject WindClose;
     public GameObject WindZone;
 
+    [Header("Audio")]
+    public AudioSource[] windAudios; // drag both wind audio sources here
+    public AudioSource rainAudio;
+    public AudioSource springAudio;
+    public AudioSource waterAudio;   // water sound in spring only
+
     [Header("Lighting")]
     public Light DirectionalLight;
     public float fadeSpeed = 2f;
@@ -27,6 +33,13 @@ public class SeasonManager : MonoBehaviour
     [Header("Terrain")]
     public Terrain terrain;
     public float grassDensity = 1f;
+
+    [Header("Skybox")]
+    public Material winterSkybox;
+    public Material springSkybox;
+
+    [Header("Water")]
+    public Renderer waterRenderer;
 
     [Header("Transition Speed")]
     public float transitionDuration = 8f;
@@ -41,12 +54,14 @@ public class SeasonManager : MonoBehaviour
     private bool isSpringLocked = false;
     private ColorAdjustments colorAdjustments;
 
+    // Track how many spotlights are on
+    private int spotlightCount = 0;
+
     void Awake() {
         Instance = this;
     }
 
     void Start() {
-        // Cache color adjustments from Global Volume profile
         if (globalVolume != null)
             globalVolume.profile.TryGet(out colorAdjustments);
 
@@ -62,6 +77,24 @@ public class SeasonManager : MonoBehaviour
         currentState = "Rain";
         Debug.Log("State changed to: Rain");
         StartCoroutine(SetRain());
+    }
+
+    public void TriggerSpotlight() {
+        if (isSpringLocked) return;
+        spotlightCount++;
+        Debug.Log("Spotlight count: " + spotlightCount);
+
+        if (spotlightCount == 1) {
+            StartCoroutine(FadeRain(0.5f));
+        }
+        else if (spotlightCount == 2) {
+            StartCoroutine(FadeRain(0.2f));
+        }
+        else if (spotlightCount == 3) {
+            currentState = "Clear";
+            Debug.Log("State changed to: Clear");
+            StartCoroutine(SetClear());
+        }
     }
 
     public void TriggerSpring() {
@@ -83,7 +116,6 @@ public class SeasonManager : MonoBehaviour
         WindClose.SetActive(true);
         WindZone.SetActive(true);
 
-        // Enable fog for winter
         SetFog(true, new Color(0.78f, 0.85f, 0.88f), 0.002f);
 
         if (DirectionalLight != null) {
@@ -97,13 +129,32 @@ public class SeasonManager : MonoBehaviour
             colorAdjustments.colorFilter.value = new Color(0.88f, 0.92f, 1f);
 
         SetTerrainLayer(SNOW);
-
-        // Hide grass and flowers in winter
         SetTerrainDetails(0f);
+
+        // Set winter skybox
+        if (winterSkybox != null) {
+            RenderSettings.skybox = winterSkybox;
+            DynamicGI.UpdateEnvironment();
+        }
+
+        // Wind audio full volume in winter
+        SetWindVolume(1f);
+
+        // Spring audio off
+        if (springAudio != null) {
+            springAudio.volume = 0f;
+            springAudio.Stop();
+        }
+
+        // Water audio off in winter
+        if (waterAudio != null) {
+            waterAudio.volume = 0f;
+            waterAudio.Stop();
+        }
     }
 
     // ─────────────────────────────────────────────
-    // RAIN — fog ON, dark overcast, no grass
+    // RAIN — fog ON, dark overcast, wind fades out
     // ─────────────────────────────────────────────
     IEnumerator SetRain() {
         Wintergroup.SetActive(false);
@@ -113,8 +164,11 @@ public class SeasonManager : MonoBehaviour
         WindClose.SetActive(true);
         WindZone.SetActive(true);
 
-        // Enable fog, heavier than winter
         SetFog(true, new Color(0.60f, 0.65f, 0.70f), 0.001f);
+
+        // Fade in rain audio + fade out wind audio simultaneously
+        StartCoroutine(FadeAudio(rainAudio, 0f, 1f, 3f));
+        StartCoroutine(FadeWindAudio(1f, 0.2f, 3f));
 
         yield return StartCoroutine(TransitionLighting(
             fromLightColor:   new Color(0.7f,  0.8f,  1f),
@@ -129,53 +183,258 @@ public class SeasonManager : MonoBehaviour
         ));
 
         SetTerrainLayer(SNOW);
-
-        // No grass in rain
         SetTerrainDetails(0f);
     }
 
     // ─────────────────────────────────────────────
-    // SPRING — fog OFF, warm pink light, grass grows
+    // Fade rain particle emission rate
     // ─────────────────────────────────────────────
-    IEnumerator SetSpring() {
-        SpringGroup.SetActive(true);
+    IEnumerator FadeRain(float targetEmission) {
+        ParticleSystem rainPS = Rain.GetComponent<ParticleSystem>();
+        if (rainPS == null) yield break;
+
+        var emission = rainPS.emission;
+        float startRate = emission.rateOverTime.constant;
+        float targetRate = startRate * targetEmission;
+        float elapsed = 0f;
+        float duration = 3f;
+
+        float startVolume = rainAudio != null ? rainAudio.volume : 0f;
+        float targetVolume = startVolume * targetEmission;
+
+        while (elapsed < duration) {
+            elapsed += Time.deltaTime;
+            float t = Mathf.SmoothStep(0f, 1f, elapsed / duration);
+            emission.rateOverTime = Mathf.Lerp(startRate, targetRate, t);
+
+            if (rainAudio != null)
+                rainAudio.volume = Mathf.Lerp(startVolume, targetVolume, t);
+
+            yield return null;
+        }
+
+        emission.rateOverTime = targetRate;
+    }
+
+    // ─────────────────────────────────────────────
+    // Fade out rain completely then disable
+    // ─────────────────────────────────────────────
+    IEnumerator FadeOutRain() {
+        ParticleSystem rainPS = Rain.GetComponent<ParticleSystem>();
+
+        if (rainPS == null) {
+            Rain.SetActive(false);
+            yield break;
+        }
+
+        var emission = rainPS.emission;
+        float startRate = emission.rateOverTime.constant;
+        float startVolume = rainAudio != null ? rainAudio.volume : 0f;
+        float elapsed = 0f;
+        float duration = 3f;
+
+        while (elapsed < duration) {
+            elapsed += Time.deltaTime;
+            float t = Mathf.SmoothStep(0f, 1f, elapsed / duration);
+            emission.rateOverTime = Mathf.Lerp(startRate, 0f, t);
+
+            if (rainAudio != null)
+                rainAudio.volume = Mathf.Lerp(startVolume, 0f, t);
+
+            yield return null;
+        }
+
         Rain.SetActive(false);
+        emission.rateOverTime = startRate;
+
+        if (rainAudio != null)
+            rainAudio.volume = startVolume;
+    }
+
+    // ─────────────────────────────────────────────
+    // CLEAR — fog OFF, rain fades out, sun appears
+    // ─────────────────────────────────────────────
+    IEnumerator SetClear() {
+        Wintergroup.SetActive(false);
+        SpringGroup.SetActive(false);
         WindFar_Left.SetActive(false);
         WindClose.SetActive(false);
         WindZone.SetActive(true);
 
-        // Disable fog for spring
+        SetFog(false, new Color(0.85f, 0.88f, 0.92f), 0.004f);
+
+        // Fade out rain slowly
+        yield return StartCoroutine(FadeOutRain());
+
+        yield return StartCoroutine(TransitionLighting(
+            fromLightColor:   DirectionalLight.color,
+            toLightColor:     new Color(1f, 0.95f, 0.85f),
+            fromIntensity:    DirectionalLight.intensity,
+            toIntensity:      0.9f,
+            fromAmbient:      RenderSettings.ambientLight,
+            toAmbient:        new Color(0.65f, 0.70f, 0.80f),
+            fromVolumeFilter: colorAdjustments != null
+                                  ? colorAdjustments.colorFilter.value
+                                  : Color.white,
+            toVolumeFilter:   new Color(0.95f, 0.95f, 1f),
+            duration:         transitionDuration * 0.5f
+        ));
+
+        SetTerrainLayer(SNOW);
+        SetTerrainDetails(0f);
+    }
+
+    // ─────────────────────────────────────────────
+    // SPRING — fog OFF, warm golden light, grass grows
+    // ─────────────────────────────────────────────
+    IEnumerator SetSpring() {
+        SpringGroup.SetActive(true);
+        WindFar_Left.SetActive(false);
+        WindClose.SetActive(false);
+        WindZone.SetActive(true);
+
         SetFog(false, new Color(0.94f, 0.91f, 0.86f), 0.003f);
+
+        // Fade out rain + wind, fade in spring birds + water simultaneously
+        StartCoroutine(FadeOutRain());
+        StartCoroutine(FadeWindAudio(GetWindVolume(), 0f, 3f));
+        StartCoroutine(FadeInSpring());
+        StartCoroutine(FadeInWater());
+
+        // Set spring skybox
+        if (springSkybox != null) {
+            RenderSettings.skybox = springSkybox;
+            DynamicGI.UpdateEnvironment();
+        }
+
+        // Fade water to warm spring color
+        if (waterRenderer != null) {
+            StartCoroutine(FadeWaterColor(
+                new Color(0.2f, 0.4f, 0.6f),
+                new Color(0.2f, 0.6f, 0.5f),
+                transitionDuration
+            ));
+        }
 
         Coroutine lightingCo = StartCoroutine(TransitionLighting(
             fromLightColor:   DirectionalLight.color,
-            toLightColor:     new Color(1f, 0.75f, 0.85f),
+            toLightColor:     new Color(1f, 0.92f, 0.75f),
             fromIntensity:    DirectionalLight.intensity,
-            toIntensity:      1.8f,
+            toIntensity:      2.5f,
             fromAmbient:      RenderSettings.ambientLight,
-            toAmbient:        new Color(1f, 0.75f, 0.85f),
+            toAmbient:        new Color(1f, 0.88f, 0.78f),
             fromVolumeFilter: colorAdjustments != null
                                 ? colorAdjustments.colorFilter.value
                                 : Color.white,
-            toVolumeFilter:   new Color(1f, 0.82f, 0.90f),
+            toVolumeFilter:   new Color(1f, 0.93f, 0.85f),
             duration:         transitionDuration
         ));
 
-        // Terrain: Snow -> Melting -> Grass with random pattern
         yield return StartCoroutine(TransitionTerrain(SNOW, MELTING, transitionDuration * 0.5f));
         yield return new WaitForSeconds(2f);
         yield return StartCoroutine(TransitionTerrain(MELTING, GRASS, transitionDuration * 0.5f));
-
-        // Grass and flowers grow alongside terrain transition
         yield return StartCoroutine(FadeTerrainDetails(0f, grassDensity, transitionDuration));
-
         yield return lightingCo;
 
         Wintergroup.SetActive(false);
 
-        // Lock Spring state permanently
         isSpringLocked = true;
         Debug.Log("Spring locked!");
+    }
+
+    // ─────────────────────────────────────────────
+    // Fade water color from cold to warm
+    // ─────────────────────────────────────────────
+    IEnumerator FadeWaterColor(Color from, Color to, float duration) {
+        float elapsed = 0f;
+        while (elapsed < duration) {
+            elapsed += Time.deltaTime;
+            float t = Mathf.SmoothStep(0f, 1f, elapsed / duration);
+            waterRenderer.material.color = Color.Lerp(from, to, t);
+            yield return null;
+        }
+        waterRenderer.material.color = to;
+    }
+
+    // ─────────────────────────────────────────────
+    // Fade in spring birds audio
+    // ─────────────────────────────────────────────
+    IEnumerator FadeInSpring() {
+        if (springAudio == null) yield break;
+
+        springAudio.volume = 0f;
+        springAudio.Play();
+
+        yield return StartCoroutine(FadeAudio(springAudio, 0f, 1f, 5f));
+    }
+
+    // ─────────────────────────────────────────────
+    // Fade in water audio in spring
+    // ─────────────────────────────────────────────
+    IEnumerator FadeInWater() {
+        if (waterAudio == null) yield break;
+
+        waterAudio.volume = 0f;
+        waterAudio.Play();
+
+        yield return StartCoroutine(FadeAudio(waterAudio, 0f, 1f, 5f));
+    }
+
+    // ─────────────────────────────────────────────
+    // Set all wind audio volumes instantly
+    // ─────────────────────────────────────────────
+    void SetWindVolume(float volume) {
+        if (windAudios == null) return;
+        foreach (AudioSource wind in windAudios)
+            if (wind != null)
+                wind.volume = volume;
+    }
+
+    // ─────────────────────────────────────────────
+    // Get current wind volume (from first source)
+    // ─────────────────────────────────────────────
+    float GetWindVolume() {
+        if (windAudios == null || windAudios.Length == 0) return 0f;
+        return windAudios[0] != null ? windAudios[0].volume : 0f;
+    }
+
+    // ─────────────────────────────────────────────
+    // Fade all wind audio sources simultaneously
+    // ─────────────────────────────────────────────
+    IEnumerator FadeWindAudio(float fromVolume, float toVolume, float duration) {
+        if (windAudios == null || windAudios.Length == 0) yield break;
+
+        float elapsed = 0f;
+        while (elapsed < duration) {
+            elapsed += Time.deltaTime;
+            float t = Mathf.SmoothStep(0f, 1f, elapsed / duration);
+            foreach (AudioSource wind in windAudios)
+                if (wind != null)
+                    wind.volume = Mathf.Lerp(fromVolume, toVolume, t);
+            yield return null;
+        }
+
+        foreach (AudioSource wind in windAudios)
+            if (wind != null)
+                wind.volume = toVolume;
+    }
+
+    // ─────────────────────────────────────────────
+    // Universal audio fade helper
+    // ─────────────────────────────────────────────
+    IEnumerator FadeAudio(AudioSource audio, float fromVolume, float toVolume, float duration) {
+        if (audio == null) yield break;
+
+        float elapsed = 0f;
+
+        while (elapsed < duration) {
+            elapsed += Time.deltaTime;
+            float t = Mathf.SmoothStep(0f, 1f, elapsed / duration);
+            audio.volume = Mathf.Lerp(fromVolume, toVolume, t);
+            yield return null;
+        }
+
+        audio.volume = toVolume;
     }
 
     // ─────────────────────────────────────────────
@@ -228,8 +487,6 @@ public class SeasonManager : MonoBehaviour
 
         while (elapsed < duration) {
             elapsed += Time.deltaTime;
-
-            // SmoothStep eases in and out naturally
             float t = Mathf.SmoothStep(0f, 1f, elapsed / duration);
 
             if (DirectionalLight != null) {
@@ -246,7 +503,6 @@ public class SeasonManager : MonoBehaviour
             yield return null;
         }
 
-        // Snap to exact final values
         if (DirectionalLight != null) {
             DirectionalLight.color     = toLightColor;
             DirectionalLight.intensity = toIntensity;
@@ -277,7 +533,7 @@ public class SeasonManager : MonoBehaviour
     }
 
     // ─────────────────────────────────────────────
-    // Smoothly blend terrain with random melting pattern
+    // Smoothly blend terrain with Perlin Noise pattern
     // ─────────────────────────────────────────────
     IEnumerator TransitionTerrain(int fromLayer, int toLayer, float duration) {
         float elapsed = 0f;
@@ -285,11 +541,17 @@ public class SeasonManager : MonoBehaviour
         int w = td.alphamapWidth;
         int h = td.alphamapHeight;
 
-        // Generate random offset map for natural melting pattern
+        // Use Perlin Noise for more natural melting pattern
         float[,] randomOffset = new float[h, w];
+        float noiseScale = 0.02f;
+        float randomSeedX = Random.Range(0f, 100f);
+        float randomSeedY = Random.Range(0f, 100f);
+
         for (int y = 0; y < h; y++)
             for (int x = 0; x < w; x++)
-                randomOffset[y, x] = Random.Range(-0.3f, 0.3f);
+                randomOffset[y, x] = (Mathf.PerlinNoise(
+                    x * noiseScale + randomSeedX,
+                    y * noiseScale + randomSeedY) - 0.5f) * 0.8f;
 
         while (elapsed < duration) {
             elapsed += Time.deltaTime;
@@ -299,7 +561,6 @@ public class SeasonManager : MonoBehaviour
 
             for (int y = 0; y < h; y++) {
                 for (int x = 0; x < w; x++) {
-                    // Each pixel melts at slightly different time
                     float blend = Mathf.Clamp01(baseBlend + randomOffset[y, x]);
 
                     for (int i = 0; i < maps.GetLength(2); i++)

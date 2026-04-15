@@ -37,16 +37,18 @@ public class ArduinoTest : MonoBehaviour
         Debug.Log("Received: " + data);
 
         if (data == "Rain") {
-            // Trigger rain in Unity
             SeasonManager.Instance.TriggerRain();
         }
         else if (data == "Spotlight1") {
+            SeasonManager.Instance.TriggerSpotlight(); // rain fades
             SpotlightManager.Instance.TurnOnSpotlight(0);
         }
         else if (data == "Spotlight2") {
+            SeasonManager.Instance.TriggerSpotlight(); // rain fades more
             SpotlightManager.Instance.TurnOnSpotlight(1);
         }
         else if (data == "Spotlight3") {
+            SeasonManager.Instance.TriggerSpotlight(); // rain stops!
             SpotlightManager.Instance.TurnOnSpotlight(2);
         }
         else if (data == "Spotlight4") {
@@ -54,9 +56,6 @@ public class ArduinoTest : MonoBehaviour
         }
         else if (data == "Spring") {
             SeasonManager.Instance.TriggerSpring();
-        }
-        else if (data == "Touch") {
-            SeasonManager.Instance.TriggerTouch();
         }
     }
 
