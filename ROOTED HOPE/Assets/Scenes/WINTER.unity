@@ -36878,7 +36878,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 672d080a3339c4eabbc67d0a98bd76fa, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::ArduinoTest
-  portNumber: 21101
+  portNumber: 11101
   baudRate: 9600
 --- !u!1 &1506840447
 GameObject:
