@@ -12,16 +12,20 @@ public class SeasonManager : MonoBehaviour
     public GameObject Rain;
     public GameObject SpringGroup;
 
+    [Header("Winter Effects")]
+    public ParticleSystem snowParticle;
+    public ParticleSystem fogParticle;
+
     [Header("Wind")]
     public GameObject WindFar_Left;
     public GameObject WindClose;
     public GameObject WindZone;
 
     [Header("Audio")]
-    public AudioSource[] windAudios; // drag both wind audio sources here
+    public AudioSource[] windAudios;
     public AudioSource rainAudio;
     public AudioSource springAudio;
-    public AudioSource waterAudio;   // water sound in spring only
+    public AudioSource waterAudio;
 
     [Header("Lighting")]
     public Light DirectionalLight;
@@ -46,9 +50,8 @@ public class SeasonManager : MonoBehaviour
 
     // Terrain layer index
     // 0 = Snow, 1 = Melting, 2 = Grass, 3 = Cliffs
-    private int SNOW    = 0;
-    private int MELTING = 1;
-    private int GRASS   = 2;
+    private int SNOW = 0;
+    private int GRASS = 2;
 
     private string currentState = "";
     private bool isSpringLocked = false;
@@ -85,12 +88,19 @@ public class SeasonManager : MonoBehaviour
         Debug.Log("Spotlight count: " + spotlightCount);
 
         if (spotlightCount == 1) {
+            // 1st spotlight → rain gets lighter
             StartCoroutine(FadeRain(0.5f));
         }
         else if (spotlightCount == 2) {
+            // 2nd spotlight → rain gets even lighter
             StartCoroutine(FadeRain(0.2f));
         }
         else if (spotlightCount == 3) {
+            // 3rd spotlight → rain almost gone
+            StartCoroutine(FadeRain(0.05f));
+        }
+        else if (spotlightCount == 4) {
+            // 4th spotlight → rain fades out completely
             currentState = "Clear";
             Debug.Log("State changed to: Clear");
             StartCoroutine(SetClear());
@@ -115,6 +125,18 @@ public class SeasonManager : MonoBehaviour
         WindFar_Left.SetActive(true);
         WindClose.SetActive(true);
         WindZone.SetActive(true);
+
+        // Enable snow and fog particles
+        if (snowParticle != null) {
+            snowParticle.gameObject.SetActive(true);
+            var emission = snowParticle.emission;
+            emission.rateOverTime = 100f;
+        }
+        if (fogParticle != null) {
+            fogParticle.gameObject.SetActive(true);
+            var emission = fogParticle.emission;
+            emission.rateOverTime = 100f;
+        }
 
         SetFog(true, new Color(0.78f, 0.85f, 0.88f), 0.002f);
 
@@ -154,10 +176,9 @@ public class SeasonManager : MonoBehaviour
     }
 
     // ─────────────────────────────────────────────
-    // RAIN — fog ON, dark overcast, wind fades out
+    // RAIN — fog ON, dark overcast, snow fades out
     // ─────────────────────────────────────────────
     IEnumerator SetRain() {
-        Wintergroup.SetActive(false);
         Rain.SetActive(true);
         SpringGroup.SetActive(false);
         WindFar_Left.SetActive(true);
@@ -166,7 +187,8 @@ public class SeasonManager : MonoBehaviour
 
         SetFog(true, new Color(0.60f, 0.65f, 0.70f), 0.001f);
 
-        // Fade in rain audio + fade out wind audio simultaneously
+        // Fade out snow + fog particles, fade in rain, fade out wind simultaneously
+        StartCoroutine(FadeOutWinterEffects());
         StartCoroutine(FadeAudio(rainAudio, 0f, 1f, 3f));
         StartCoroutine(FadeWindAudio(1f, 0.2f, 3f));
 
@@ -184,6 +206,47 @@ public class SeasonManager : MonoBehaviour
 
         SetTerrainLayer(SNOW);
         SetTerrainDetails(0f);
+    }
+
+    // ─────────────────────────────────────────────
+    // Fade out snow and fog particles smoothly
+    // ─────────────────────────────────────────────
+    IEnumerator FadeOutWinterEffects() {
+        if (snowParticle == null && fogParticle == null) {
+            Wintergroup.SetActive(false);
+            yield break;
+        }
+
+        float elapsed = 0f;
+        float duration = 4f;
+
+        // Get initial rates
+        ParticleSystem.EmissionModule snowEmission = snowParticle != null ? snowParticle.emission : default;
+        ParticleSystem.EmissionModule fogEmission  = fogParticle  != null ? fogParticle.emission  : default;
+
+        float snowStartRate = snowParticle != null ? snowEmission.rateOverTime.constant : 0f;
+        float fogStartRate  = fogParticle  != null ? fogEmission.rateOverTime.constant  : 0f;
+
+        while (elapsed < duration) {
+            elapsed += Time.deltaTime;
+            float t = Mathf.SmoothStep(0f, 1f, elapsed / duration);
+
+            if (snowParticle != null) {
+                // Must reassign emission module each frame
+                var e = snowParticle.emission;
+                e.rateOverTime = Mathf.Lerp(snowStartRate, 0f, t);
+            }
+            if (fogParticle != null) {
+                var e = fogParticle.emission;
+                e.rateOverTime = Mathf.Lerp(fogStartRate, 0f, t);
+            }
+
+            yield return null;
+        }
+
+        if (snowParticle != null) snowParticle.gameObject.SetActive(false);
+        if (fogParticle  != null) fogParticle.gameObject.SetActive(false);
+        Wintergroup.SetActive(false);
     }
 
     // ─────────────────────────────────────────────
@@ -255,7 +318,6 @@ public class SeasonManager : MonoBehaviour
     // CLEAR — fog OFF, rain fades out, sun appears
     // ─────────────────────────────────────────────
     IEnumerator SetClear() {
-        Wintergroup.SetActive(false);
         SpringGroup.SetActive(false);
         WindFar_Left.SetActive(false);
         WindClose.SetActive(false);
@@ -309,30 +371,31 @@ public class SeasonManager : MonoBehaviour
 
         // Fade water to warm spring color
         if (waterRenderer != null) {
+            Material mat = waterRenderer.material;
+            mat.SetFloat("_Smoothness", 0.8f);
+
             StartCoroutine(FadeWaterColor(
                 new Color(0.2f, 0.4f, 0.6f),
-                new Color(0.2f, 0.6f, 0.5f),
+                new Color(0.3f, 0.55f, 0.75f),
                 transitionDuration
             ));
         }
 
         Coroutine lightingCo = StartCoroutine(TransitionLighting(
             fromLightColor:   DirectionalLight.color,
-            toLightColor:     new Color(1f, 0.92f, 0.75f),
+            toLightColor:     new Color(1f, 0.95f, 0.85f),
             fromIntensity:    DirectionalLight.intensity,
-            toIntensity:      2.5f,
+            toIntensity:      4f,
             fromAmbient:      RenderSettings.ambientLight,
-            toAmbient:        new Color(1f, 0.88f, 0.78f),
+            toAmbient:        new Color(0.85f, 0.9f, 1f),
             fromVolumeFilter: colorAdjustments != null
                                 ? colorAdjustments.colorFilter.value
                                 : Color.white,
-            toVolumeFilter:   new Color(1f, 0.93f, 0.85f),
+            toVolumeFilter:   new Color(1f, 0.97f, 0.92f),
             duration:         transitionDuration
         ));
 
-        yield return StartCoroutine(TransitionTerrain(SNOW, MELTING, transitionDuration * 0.5f));
-        yield return new WaitForSeconds(2f);
-        yield return StartCoroutine(TransitionTerrain(MELTING, GRASS, transitionDuration * 0.5f));
+        yield return StartCoroutine(TransitionTerrain(SNOW, GRASS, transitionDuration));
         yield return StartCoroutine(FadeTerrainDetails(0f, grassDensity, transitionDuration));
         yield return lightingCo;
 
@@ -543,7 +606,7 @@ public class SeasonManager : MonoBehaviour
 
         // Use Perlin Noise for more natural melting pattern
         float[,] randomOffset = new float[h, w];
-        float noiseScale = 0.02f;
+        float noiseScale = 0.008f;
         float randomSeedX = Random.Range(0f, 100f);
         float randomSeedY = Random.Range(0f, 100f);
 
@@ -551,7 +614,7 @@ public class SeasonManager : MonoBehaviour
             for (int x = 0; x < w; x++)
                 randomOffset[y, x] = (Mathf.PerlinNoise(
                     x * noiseScale + randomSeedX,
-                    y * noiseScale + randomSeedY) - 0.5f) * 0.8f;
+                    y * noiseScale + randomSeedY) - 0.5f) * 1.2f;
 
         while (elapsed < duration) {
             elapsed += Time.deltaTime;

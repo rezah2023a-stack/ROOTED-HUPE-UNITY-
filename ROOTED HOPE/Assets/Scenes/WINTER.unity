@@ -288,6 +288,10 @@ PrefabInstance:
       propertyPath: m_Name
       value: PlayerCapsule
       objectReference: {fileID: 0}
+    - target: {fileID: 8616685848737228372, guid: c5efc39a8aaf6e64ea40e9ad573e9b47, type: 3}
+      propertyPath: m_IsActive
+      value: 0
+      objectReference: {fileID: 0}
     - target: {fileID: 8997996947095583982, guid: c5efc39a8aaf6e64ea40e9ad573e9b47, type: 3}
       propertyPath: m_RootOrder
       value: 4
@@ -5412,13 +5416,13 @@ Transform:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 358730929}
   serializedVersion: 2
-  m_LocalRotation: {x: -0.6898098, y: -0.03046335, z: 0.031913426, w: 0.7226451}
-  m_LocalPosition: {x: 448.1, y: 129.8, z: 192.4}
+  m_LocalRotation: {x: -0.6887132, y: -0.049727056, z: 0.05030082, w: 0.7215755}
+  m_LocalPosition: {x: 435.7, y: 128.5, z: 192.4}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children: []
   m_Father: {fileID: 653407748}
-  m_LocalEulerAnglesHint: {x: -84.286, y: -62.179, z: 62.296}
+  m_LocalEulerAnglesHint: {x: -81.461, y: -71.79, z: 71.836}
 --- !u!199 &358730931
 ParticleSystemRenderer:
   serializedVersion: 7
@@ -15563,6 +15567,8 @@ MonoBehaviour:
   Wintergroup: {fileID: 2128820055}
   Rain: {fileID: 1676094736}
   SpringGroup: {fileID: 232568602}
+  snowParticle: {fileID: 680998808}
+  fogParticle: {fileID: 1486296429}
   WindFar_Left: {fileID: 1448892340}
   WindClose: {fileID: 1979001825}
   WindZone: {fileID: 1084119791}
@@ -15578,7 +15584,7 @@ MonoBehaviour:
   terrain: {fileID: 664518947}
   grassDensity: 1
   winterSkybox: {fileID: 2100000, guid: 2d796ced94d61438fbab81b194038162, type: 2}
-  springSkybox: {fileID: 2100000, guid: c56e28e54cac24b04ae3dd957d214534, type: 2}
+  springSkybox: {fileID: 2100000, guid: 7416536dbe0334cfd888dd1beb75a9fb, type: 2}
   waterRenderer: {fileID: 1557680066}
   transitionDuration: 8
 --- !u!4 &645254060
@@ -15621,7 +15627,7 @@ Transform:
   m_GameObject: {fileID: 653407747}
   serializedVersion: 2
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
-  m_LocalPosition: {x: -44, y: 0, z: -7}
+  m_LocalPosition: {x: -26.2, y: 0, z: -7}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children:
@@ -20672,7 +20678,7 @@ Transform:
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children: []
-  m_Father: {fileID: 2128820056}
+  m_Father: {fileID: 778256865}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!1 &685637995
 GameObject:
@@ -21012,6 +21018,39 @@ Light:
   m_LightUnit: 1
   m_LuxAtDistance: 1
   m_EnableSpotReflector: 1
+--- !u!1 &778256864
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 778256865}
+  m_Layer: 0
+  m_Name: WinterParticles
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!4 &778256865
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 778256864}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 0, y: 0, z: 0}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children:
+  - {fileID: 680998809}
+  - {fileID: 1486296427}
+  m_Father: {fileID: 0}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!1 &791569634
 GameObject:
   m_ObjectHideFlags: 0
@@ -26032,13 +26071,13 @@ AudioSource:
   m_audioClip: {fileID: 0}
   m_Resource: {fileID: 8300000, guid: 60582297f3c7548fd8cce8ba511aba11, type: 3}
   m_PlayOnAwake: 1
-  m_Volume: 0.5
+  m_Volume: 0.1
   m_Pitch: 1
   Loop: 1
   Mute: 0
   Spatialize: 0
   SpatializePostEffects: 0
-  Priority: 128
+  Priority: 85
   DopplerLevel: 1
   MinDistance: 5
   MaxDistance: 35.98848
@@ -31986,11 +32025,11 @@ Transform:
   m_GameObject: {fileID: 1486296426}
   serializedVersion: 2
   m_LocalRotation: {x: -0, y: -0, z: -0, w: 1}
-  m_LocalPosition: {x: 0, y: 0, z: -44.6}
+  m_LocalPosition: {x: 496.5, y: 2.5, z: 85.5}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children: []
-  m_Father: {fileID: 2128820056}
+  m_Father: {fileID: 778256865}
   m_LocalEulerAnglesHint: {x: -90, y: 0, z: 0}
 --- !u!199 &1486296428
 ParticleSystemRenderer:
@@ -32208,7 +32247,7 @@ ParticleSystem:
     startSpeed:
       serializedVersion: 2
       minMaxState: 3
-      scalar: 2
+      scalar: 0.8
       minScalar: 0
       maxCurve:
         serializedVersion: 2
@@ -32643,7 +32682,7 @@ ParticleSystem:
         m_RotationOrder: 4
     randomizeRotationDirection: 0
     gravitySource: 0
-    maxNumParticles: 1000
+    maxNumParticles: 300
     customEmitterVelocity: {x: 0, y: 0, z: 0}
     size3D: 1
     rotation3D: 0
@@ -32711,7 +32750,7 @@ ParticleSystem:
     donutRadius: 0.2
     m_Position: {x: 0, y: 0, z: 0}
     m_Rotation: {x: 0, y: 0, z: 0}
-    m_Scale: {x: 10, y: 10, z: 10}
+    m_Scale: {x: 70, y: 30, z: 10}
     placementMode: 0
     m_MeshMaterialIndex: 0
     m_MeshNormalOffset: 0
@@ -32909,7 +32948,7 @@ ParticleSystem:
     rateOverTime:
       serializedVersion: 2
       minMaxState: 0
-      scalar: 15
+      scalar: 100
       minScalar: 10
       maxCurve:
         serializedVersion: 2
@@ -47099,7 +47138,7 @@ Transform:
   m_GameObject: {fileID: 2049396555}
   serializedVersion: 2
   m_LocalRotation: {x: -0, y: -0, z: 0.040329363, w: 0.99918646}
-  m_LocalPosition: {x: -14, y: -32, z: -19}
+  m_LocalPosition: {x: -21.6, y: -32.6, z: -19}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children:
@@ -47199,8 +47238,6 @@ Transform:
   m_ConstrainProportionsScale: 0
   m_Children:
   - {fileID: 832575519}
-  - {fileID: 680998809}
-  - {fileID: 1486296427}
   - {fileID: 410087041}
   m_Father: {fileID: 0}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
@@ -47213,6 +47250,7 @@ SceneRoots:
   - {fileID: 828546816}
   - {fileID: 434522286}
   - {fileID: 578780105}
+  - {fileID: 778256865}
   - {fileID: 2128820056}
   - {fileID: 1676094740}
   - {fileID: 232568603}
