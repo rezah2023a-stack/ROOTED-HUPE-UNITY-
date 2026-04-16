@@ -31,4 +31,11 @@ public class SpotlightManager : MonoBehaviour
             case 3: spotlight4Parent.SetActive(true); break;
         }
     }
+
+    public void TurnOffAllSpotlights() {
+        spotlight1Parent.SetActive(false);
+        spotlight2Parent.SetActive(false);
+        spotlight3Parent.SetActive(false);
+        spotlight4Parent.SetActive(false);
+    }
 }
