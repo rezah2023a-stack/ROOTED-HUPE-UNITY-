@@ -48,6 +48,9 @@ public class SeasonManager : MonoBehaviour
     [Header("Transition Speed")]
     public float transitionDuration = 8f;
 
+    [Header("Spring Timer")]
+    public float springDuration = 30f; // seconds before reset to winter
+
     // Terrain layer index
     // 0 = Snow, 1 = Melting, 2 = Grass, 3 = Cliffs
     private int SNOW = 0;
@@ -113,6 +116,29 @@ public class SeasonManager : MonoBehaviour
         currentState = "Spring";
         Debug.Log("State changed to: Spring");
         StartCoroutine(SetSpring());
+    }
+
+    // ─────────────────────────────────────────────
+    // Spring timer — reset to winter after springDuration
+    // ─────────────────────────────────────────────
+    IEnumerator SpringTimer() {
+        isSpringLocked = true;
+        Debug.Log("Spring locked for " + springDuration + " seconds!");
+
+        yield return new WaitForSeconds(springDuration);
+
+        // Reset all flags
+        isSpringLocked = false;
+        spotlightCount = 0;
+        currentState = "";
+
+        // Turn off all spotlights
+        if (SpotlightManager.Instance != null) {
+            SpotlightManager.Instance.TurnOffAllSpotlights();
+        }
+
+        Debug.Log("Spring unlocked! Back to winter.");
+        SetWinter();
     }
 
     // ─────────────────────────────────────────────
@@ -232,7 +258,6 @@ public class SeasonManager : MonoBehaviour
             float t = Mathf.SmoothStep(0f, 1f, elapsed / duration);
 
             if (snowParticle != null) {
-                // Must reassign emission module each frame
                 var e = snowParticle.emission;
                 e.rateOverTime = Mathf.Lerp(snowStartRate, 0f, t);
             }
@@ -401,8 +426,9 @@ public class SeasonManager : MonoBehaviour
 
         Wintergroup.SetActive(false);
 
-        isSpringLocked = true;
-        Debug.Log("Spring locked!");
+        // Start spring timer instead of permanent lock
+        StartCoroutine(SpringTimer());
+        Debug.Log("Spring started! Will reset in " + springDuration + " seconds.");
     }
 
     // ─────────────────────────────────────────────
@@ -604,7 +630,6 @@ public class SeasonManager : MonoBehaviour
         int w = td.alphamapWidth;
         int h = td.alphamapHeight;
 
-        // Use Perlin Noise for more natural melting pattern
         float[,] randomOffset = new float[h, w];
         float noiseScale = 0.008f;
         float randomSeedX = Random.Range(0f, 100f);
