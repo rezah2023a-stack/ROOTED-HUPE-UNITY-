@@ -2,7 +2,7 @@
 
 // ===== NeoPixel LED Strip Settings =====
 #define LED_PIN    6
-#define LED_COUNT  30
+#define LED_COUNT  46
 
 Adafruit_NeoPixel strip(LED_COUNT, LED_PIN, NEO_GRB + NEO_KHZ800);
 
