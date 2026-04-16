@@ -18,7 +18,7 @@ const int LDR_COUNT    = 4;
 const int MOISTURE_WET = 150;
 const int LDR_BRIGHT   = 500;
 
-// ===== Trigger Flags (fire once only) =====
+// ===== Trigger Flags =====
 bool moistureTriggered = false;
 bool ldrTriggered[]    = {false, false, false, false};
 bool springTriggered   = false;
@@ -28,34 +28,42 @@ void setup() {
 
   strip.begin();
   strip.setBrightness(50);
-  setAllColor(150, 200, 255); // winter blue on start
+  setAllColor(150, 200, 255);
   strip.show();
 
   pinMode(LED_CONTROL_PIN, OUTPUT);
-  digitalWrite(LED_CONTROL_PIN, LOW); // OFF at start
+  digitalWrite(LED_CONTROL_PIN, LOW);
 }
 
 void loop() {
+  // ===== Reset 신호 수신 =====
+  if (Serial.available() > 0) {
+    String received = Serial.readStringUntil('\n');
+    received.trim();
+    if (received == "Reset") {
+      resetAll();
+    }
+  }
+
   int moistureValue = analogRead(MOISTURE_PIN);
 
-  // Read all 4 LDR values
   int ldrValues[LDR_COUNT];
   for (int i = 0; i < LDR_COUNT; i++) {
     ldrValues[i] = analogRead(LDR_PINS[i]);
   }
 
-  // ===== Moisture → Rain (first time only) =====
+  // ===== Moisture → Rain =====
   if (!moistureTriggered && moistureValue >= MOISTURE_WET) {
     moistureTriggered = true;
-    loadingFlow(0, 0, 255); // blue flow
+    loadingFlow(0, 0, 255);
     Serial.println("Rain");
   }
 
-  // ===== Each LDR → Spotlight (first time only) =====
+  // ===== LDR → Spotlight =====
   for (int i = 0; i < LDR_COUNT; i++) {
     if (!ldrTriggered[i] && ldrValues[i] >= LDR_BRIGHT) {
       ldrTriggered[i] = true;
-      loadingFlow(255, 255, 0); // yellow flow
+      loadingFlow(255, 255, 0);
       Serial.println("Spotlight" + String(i + 1));
     }
   }
@@ -72,18 +80,29 @@ void loop() {
 
     if (allDone) {
       springTriggered = true;
-      loadingFlow(255, 100, 150); // pink flow
+      loadingFlow(255, 100, 150);
       Serial.println("Spring");
-      digitalWrite(LED_CONTROL_PIN, HIGH); // Branch LEDs ON!
+      digitalWrite(LED_CONTROL_PIN, HIGH);
     }
   }
 
   delay(100);
 }
 
-// ===== Loading bar effect with accelerating speed =====
+// ===== 리셋 함수 =====
+void resetAll() {
+  moistureTriggered = false;
+  springTriggered = false;
+  for (int i = 0; i < LDR_COUNT; i++) {
+    ldrTriggered[i] = false;
+  }
+  digitalWrite(LED_CONTROL_PIN, LOW);
+  setAllColor(150, 200, 255);
+  strip.show();
+}
+
+// ===== Loading bar effect =====
 void loadingFlow(int r, int g, int b) {
-  // Clear all LEDs first
   strip.clear();
   strip.show();
   delay(200);
@@ -91,8 +110,6 @@ void loadingFlow(int r, int g, int b) {
   for (int i = 0; i < LED_COUNT; i++) {
     strip.setPixelColor(i, strip.Color(r, g, b));
     strip.show();
-
-    // Start slow, get faster toward the end
     int waitTime = map(i, 0, LED_COUNT - 1, 200, 10);
     delay(waitTime);
   }

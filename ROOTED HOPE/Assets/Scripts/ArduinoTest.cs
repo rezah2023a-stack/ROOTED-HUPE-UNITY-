@@ -3,12 +3,18 @@ using System.IO.Ports;
 
 public class ArduinoTest : MonoBehaviour
 {
+    public static ArduinoTest Instance; // 추가
+
     [Header("Serial Settings")]
-    public string portNumber = "11401"; // only change this number in Inspector
+    public string portNumber = "11401";
     public int baudRate = 9600;
 
     private SerialPort serial;
     private string portName => "/dev/cu.usbmodem" + portNumber;
+
+    void Awake() {
+        Instance = this; // 추가
+    }
 
     void Start() {
         serial = new SerialPort(portName, baudRate);
@@ -40,15 +46,15 @@ public class ArduinoTest : MonoBehaviour
             SeasonManager.Instance.TriggerRain();
         }
         else if (data == "Spotlight1") {
-            SeasonManager.Instance.TriggerSpotlight(); // rain fades
+            SeasonManager.Instance.TriggerSpotlight();
             SpotlightManager.Instance.TurnOnSpotlight(0);
         }
         else if (data == "Spotlight2") {
-            SeasonManager.Instance.TriggerSpotlight(); // rain fades more
+            SeasonManager.Instance.TriggerSpotlight();
             SpotlightManager.Instance.TurnOnSpotlight(1);
         }
         else if (data == "Spotlight3") {
-            SeasonManager.Instance.TriggerSpotlight(); // rain stops!
+            SeasonManager.Instance.TriggerSpotlight();
             SpotlightManager.Instance.TurnOnSpotlight(2);
         }
         else if (data == "Spotlight4") {
@@ -56,6 +62,13 @@ public class ArduinoTest : MonoBehaviour
         }
         else if (data == "Spring") {
             SeasonManager.Instance.TriggerSpring();
+        }
+    }
+
+    // 추가
+    public void SendToArduino(string message) {
+        if (serial != null && serial.IsOpen) {
+            serial.WriteLine(message);
         }
     }
 
